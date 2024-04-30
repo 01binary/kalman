@@ -64,9 +64,9 @@ disturbance = 0;
 % Read input
 csv = readmatrix('https://raw.githubusercontent.com/01binary/kalman/main/input.csv');
 time = csv(:,1);
-measurement = csv(:,2);
-input = csv(:,3);
-output = zeros(length(input), 1);
+measurements = csv(:,2);
+inputs = csv(:,3);
+outputs = zeros(length(inputs), 1);
 
 % Initial state
 systemState = initialState;
@@ -82,9 +82,9 @@ stateVariance = initialStateVariance;
   initialStateVariance, inputVariance, disturbanceVariance);
 
 % Filter
-for i = 1:length(input)
-  % Input
-  measurement = input(i);
+for i = 1:length(inputs)
+  input = inputs(i);
+  measurement = measurements(i)
 
   % Blend estimate with prediction according to which has less variance
   % If prediction has less variance, we trust the model more
@@ -93,16 +93,17 @@ for i = 1:length(input)
     (estimateVariance + measurementVariance);
 
   % Estimate
-  estimate = prediction + gain * (measurement - prediction);
+  estimate = prediction + gain * (measurement - prediction)
   estimateVariance = (1 - gain) * estimateVariance;
 
   % Predict and update state
-  [y, x] = systemModel( ...
+  [prediction, systemState] = systemModel( ...
     systemState, ...
-    measurement, ...
+    input, ...
     disturbance ...
   );
 
+  % Update variance
   [ ...
     predictionVariance, ...
     stateVariance, ...
@@ -113,11 +114,11 @@ for i = 1:length(input)
   );
 
   % Output
-  output(i) = y;
+  outputs(i) = y;
 end
 
 % Plot
-plot(time, measurement, time, output);
+plot(time, measurements, time, outputs);
 
 function [y, x] = systemModel(x, u, e)
   global A;
