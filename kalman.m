@@ -67,6 +67,7 @@ time = csv(:,1);
 measurements = csv(:,2);
 inputs = csv(:,3);
 outputs = zeros(length(inputs), 1);
+simulation = zeros(length(inputs), 1);
 
 % Initial state
 systemState = initialState;
@@ -81,25 +82,24 @@ stateVariance = initialStateVariance;
 [estimateVariance] = systemVariance( ...
   initialStateVariance, inputVariance, disturbanceVariance);
 
+gain = 1;
+
 % Filter
 for i = 1:length(inputs)
   % Take measurement
   measurement = measurements(i)
 
+  % Blend measurement with prediction
+  estimate = prediction + gain * (measurement - prediction);
+  estimateVariance = (1 - gain) * estimateVariance;
+
   % Weigh measurement against prediction depending on which has less variance
   gain = estimateVariance / (estimateVariance + measurementVariance);
 
-  % Blend measurement with prediction
-  estimate = estimate + gain * (measurement - prediction);
-  estimateVariance = (1 - gain) * estimateVariance;
-
   % Predict and update state
   input = inputs(i);
-  [prediction, systemState] = systemModel( ...
-    systemState, ...
-    input, ...
-    disturbance ...
-  );
+  [prediction, systemState] = systemModel(systemState, input, disturbance);
+  simulation(i) = prediction;
 
   % Update variance
   [ ...
@@ -116,7 +116,7 @@ for i = 1:length(inputs)
 end
 
 % Plot
-plot(time, measurements, time, outputs);
+plot(time, measurements, time, outputs, time, simulation);
 
 function [y, x] = systemModel(x, u, e)
   global A;
