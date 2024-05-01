@@ -49,13 +49,13 @@ initialStateVariance = [ ...
   76677742001.5582;
 ];
 
-% Input variance from PID algorithm (constant)
+% Input variance
 inputVariance = 1;
 
-% Measurement variance from encoder (constant)
+% Measurement variance
 measurementVariance = 841.9616;
 
-% Disturbance variance from model "NoiseVariance"
+% Disturbance variance
 disturbanceVariance = 223.9915;
 
 % Disturbance
@@ -83,20 +83,18 @@ stateVariance = initialStateVariance;
 
 % Filter
 for i = 1:length(inputs)
-  input = inputs(i);
+  % Take measurement
   measurement = measurements(i)
 
-  % Blend estimate with prediction according to which has less variance
-  % If prediction has less variance, we trust the model more
-  % If estimate has less variance, we trust the measurement more
-  gain = estimateVariance / ...
-    (estimateVariance + measurementVariance);
+  % Weigh measurement against prediction depending on which has less variance
+  gain = estimateVariance / (estimateVariance + measurementVariance);
 
-  % Estimate
-  estimate = prediction + gain * (measurement - prediction)
+  % Blend measurement with prediction
+  estimate = estimate + gain * (measurement - prediction);
   estimateVariance = (1 - gain) * estimateVariance;
 
   % Predict and update state
+  input = inputs(i);
   [prediction, systemState] = systemModel( ...
     systemState, ...
     input, ...
@@ -114,7 +112,7 @@ for i = 1:length(inputs)
   );
 
   % Output
-  outputs(i) = y;
+  outputs(i) = estimate;
 end
 
 % Plot
