@@ -67,6 +67,7 @@ time = csv(:,1);
 measurements = csv(:,2);
 inputs = csv(:,3);
 outputs = zeros(length(inputs), 1);
+optimization = zeros(length(inputs), 1);
 
 % Initial state
 systemState = initialState;
@@ -85,12 +86,11 @@ stateVariance = initialStateVariance;
 for i = 1:length(inputs)
   % Input
   input = inputs(i);
-  measurement = measurements(i)
+  measurement = measurements(i);
 
   % Weigh measurement against prediction depending on which has less variance
-  estimateVariance
-  measurementVariance
-  gain = estimateVariance / (estimateVariance + measurementVariance)
+  gain = estimateVariance / (estimateVariance + measurementVariance);
+  optimization(i) = gain * 100;
 
   % Blend measurement with prediction
   estimate = prediction + gain * (measurement - prediction);
@@ -101,7 +101,7 @@ for i = 1:length(inputs)
 
   % Update variance
   [ ...
-    predictionVariance, ...
+    estima, ...
     stateVariance, ...
   ] = systemVariance( ...
     stateVariance, ...
@@ -113,8 +113,8 @@ for i = 1:length(inputs)
   outputs(i) = estimate;
 end
 
-% Plot
-plot(time, measurements, time, outputs);
+% Plot measurements, filtered outputs and Kalman gain
+plot(time, measurements, time, outputs, time, optimization);
 
 function [y, x] = systemModel(x, u, e)
   global A;
