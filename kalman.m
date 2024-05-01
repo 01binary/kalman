@@ -67,7 +67,6 @@ time = csv(:,1);
 measurements = csv(:,2);
 inputs = csv(:,3);
 outputs = zeros(length(inputs), 1);
-simulation = zeros(length(inputs), 1);
 
 % Initial state
 systemState = initialState;
@@ -99,7 +98,6 @@ for i = 1:length(inputs)
   % Predict and update state
   input = inputs(i);
   [prediction, systemState] = systemModel(systemState, input, disturbance);
-  simulation(i) = prediction;
 
   % Update variance
   [ ...
@@ -116,7 +114,7 @@ for i = 1:length(inputs)
 end
 
 % Plot
-plot(time, measurements, time, outputs, time, simulation);
+plot(time, measurements, time, outputs);
 
 function [y, x] = systemModel(x, u, e)
   global A;
