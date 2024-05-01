@@ -50,7 +50,7 @@ initialStateVariance = [ ...
 ];
 
 % Input variance
-inputVariance = 1;
+inputVariance = 100;
 
 % Measurement variance
 measurementVariance = 841.9616;
@@ -81,22 +81,22 @@ stateVariance = initialStateVariance;
 [estimateVariance] = systemVariance( ...
   initialStateVariance, inputVariance, disturbanceVariance);
 
-gain = 1;
-
 % Filter
 for i = 1:length(inputs)
-  % Take measurement
+  % Input
+  input = inputs(i);
   measurement = measurements(i)
+
+  % Weigh measurement against prediction depending on which has less variance
+  estimateVariance
+  measurementVariance
+  gain = estimateVariance / (estimateVariance + measurementVariance)
 
   % Blend measurement with prediction
   estimate = prediction + gain * (measurement - prediction);
   estimateVariance = (1 - gain) * estimateVariance;
 
-  % Weigh measurement against prediction depending on which has less variance
-  gain = estimateVariance / (estimateVariance + measurementVariance);
-
   % Predict and update state
-  input = inputs(i);
   [prediction, systemState] = systemModel(systemState, input, disturbance);
 
   % Update variance
