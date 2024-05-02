@@ -101,13 +101,9 @@ for i = 1:length(inputs)
 
   % Update variance
   [ ...
-    estima, ...
+    predictionVariance, ...
     stateVariance, ...
-  ] = systemVariance( ...
-    stateVariance, ...
-    inputVariance, ...
-    disturbanceVariance ...
-  );
+  ] = systemVariance(stateVariance, inputVariance, disturbanceVariance);
 
   % Output
   outputs(i) = estimate;
@@ -116,7 +112,7 @@ end
 % Plot measurements, filtered outputs and Kalman gain
 plot(time, measurements, time, outputs, time, optimization);
 
-function [y, x] = systemModel(x, u, e)
+function [prediction, state] = systemModel(state, input, disturbance)
   global A;
   global B;
   global C;
@@ -125,17 +121,17 @@ function [y, x] = systemModel(x, u, e)
 
   % Predict
   % y = Cx + Du + e
-  y = ...
-    C * x + ...  % Add contribution of state
-    D * u + ...  % Add contribution of input
-    e;           % Add disturbance
+  prediction = ...
+    C * state + ...  % Add contribution of state
+    D * input + ...  % Add contribution of input
+    disturbance;     % Add disturbance
 
   % Update state
   % x = Ax + Bu + Ke
-  x = ...
-    A * x + ... % Add contribution of state
-    B * u + ... % Add contribution of input
-    e * K;      % Add contribution of disturbance
+  state = ...
+    A * state + ...  % Add contribution of state
+    B * input + ...  % Add contribution of input
+    disturbance * K; % Add contribution of disturbance
 end
 
 function [predictionVariance, stateVariance] = systemVariance( ...
