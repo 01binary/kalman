@@ -1,28 +1,22 @@
-global A;
-global B;
-global C;
-global D;
-global K;
-
 % A weights (3x3 matrix)
 A = [ ...
-  0.9988,     0.05193, -0.02261;
-  0.02222,   -0.01976,  0.7353;
-  0.0009856, -0.2093,  -0.5957;
+  1.0005, -0.0050, 0.0001;
+  0.0061, 0.9881, -0.0684;
+  -0.0009, 0.0768, 0.9224;
 ];
 
 % B weights (3x1 vector)
 B = [ ...
-  -0.00000266;
-  0.0000572747;
-  -0.0001872152;
+  8.7913e-10;
+  1.0489e-07;
+  -2.4853e-05;
 ];
 
 % C weights (1x3 vector)
 C = [ ...
-  -5316.903919, ...
-  24.867656, ...
-  105.92416 ...
+  -5.2908e+03, ...
+  13.0803, ...
+  -0.6389 ...
 ];
 
 % D weight (scalar)
@@ -30,33 +24,33 @@ D = 0;
 
 % K weights (3x1 vector)
 K = [ ...
-  -0.0001655;
-  -0.001508;
-  6.209e-06;
+  -0.0003;
+  0.0571;
+  -0.3487;
 ];
 
-% Initial state (3x1 vector) from model "x0"
-initialState = [ ...
-  -0.0458;
-  0.0099;
-  -0.0139;
+% Initial state (3x1 vector)
+x0 = [ ...
+  -0.0461;
+  -0.0198;
+  0.0098;
 ];
 
-% Initial state variance (3x1 vector) from model "dx0"
-initialStateVariance = [ ...
-  3571390965.7972;
-  61462256677.8923;
-  76677742001.5582;
+% Initial state variance (3x1 vector)
+dx0 = [ ...
+  7.4356e+06;
+  3.9306e+09;
+  5.1495e+10;
 ];
 
 % Input variance
 inputVariance = 100;
 
 % Measurement variance
-measurementVariance = 841.9616;
+measurementVariance = 344.5291;
 
 % Disturbance variance
-disturbanceVariance = 223.9915;
+disturbanceVariance = 0.0016;
 
 % Disturbance
 disturbance = 0;
@@ -70,54 +64,16 @@ outputs = zeros(length(inputs), 1);
 optimization = zeros(length(inputs), 1);
 
 % Initial state
-systemState = initialState;
+state = x0;
 
-% Initial state variance
-stateVariance = initialStateVariance;
-
-% Initial guess
-[prediction] = systemModel(systemState, 0, 0);
-
-% Initial guess variance
-[estimateVariance] = systemVariance( ...
-  initialStateVariance, inputVariance, disturbanceVariance);
+% Initial covariance
+covariance = disturbanceVariance;
 
 % Filter
 for i = 1:length(inputs)
   % Input
   input = inputs(i);
   measurement = measurements(i);
-
-  % Weigh measurement against prediction depending on which has less variance
-  gain = estimateVariance / (estimateVariance + measurementVariance);
-  optimization(i) = gain * 100;
-
-  % Blend measurement with prediction
-  estimate = prediction + gain * (measurement - prediction);
-  estimateVariance = (1 - gain) * estimateVariance;
-
-  % Predict and update state
-  [prediction, systemState] = systemModel(systemState, input, disturbance);
-
-  % Update variance
-  [ ...
-    predictionVariance, ...
-    stateVariance, ...
-  ] = systemVariance(stateVariance, inputVariance, disturbanceVariance);
-
-  % Output
-  outputs(i) = estimate;
-end
-
-% Plot measurements, filtered outputs and Kalman gain
-plot(time, measurements, time, outputs, time, optimization);
-
-function [prediction, state] = systemModel(state, input, disturbance)
-  global A;
-  global B;
-  global C;
-  global D;
-  global K;
 
   % Predict
   % y = Cx + Du + e
@@ -132,26 +88,25 @@ function [prediction, state] = systemModel(state, input, disturbance)
     A * state + ...  % Add contribution of state
     B * input + ...  % Add contribution of input
     disturbance * K; % Add contribution of disturbance
+
+  % Update covariance
+  Aterm = sum(diag(A * covariance * 0.02 * A'));
+  Kterm = sum(diag(K * disturbanceVariance * K'));
+  %covariance = Aterm + Kterm;
+
+  % Optimize covariance
+  gain = covariance / (covariance + measurementVariance);
+
+  % Correct prediction
+  estimate = prediction + gain * (measurement - prediction);
+
+  % Correct covariance
+  covariance = (1 - gain) * covariance;
+
+  % Output
+  outputs(i) = prediction;
+  optimization(i) = gain * 100;
 end
 
-function [predictionVariance, stateVariance] = systemVariance( ...
-  stateVariance, inputVariance, disturbanceVariance ...
-)
-  global A;
-  global B;
-  global C;
-  global D;
-  global K;
-
-  % Update prediction variance
-  predictionVariance = ...
-    sum(C * stateVariance * C') + ...
-    D^2 * inputVariance + ...
-    disturbanceVariance;
-
-  % Update state variance (vector)
-  stateVariance = ...
-    A * stateVariance + ...
-    B * inputVariance + ...
-    K * disturbanceVariance;
-end
+% Plot measurements, outputs and Kalman gain
+plot(time, measurements, time, outputs, time, optimization);
