@@ -168,23 +168,24 @@ int main(int argc, char** argv)
   VectorXd gain(3);
   MatrixXd covariance = P0;
   double time, measurement, input;
+  double prediction = 0.0;
 
   // Filter
   while(read(inputFile, time, measurement, input))
   {
-    // Predict and update state
-    double prediction = systemModel(
-      state,
-      input
-    );
-
-    // Correct state
+    // Correct state with measurement
     double estimate = kalmanFilter(
       prediction,
       measurement,
       state,
       covariance,
       gain
+    );
+
+    // Predict and update state
+    prediction = systemModel(
+      state,
+      input
     );
 
     // Output
