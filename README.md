@@ -28,6 +28,8 @@ The C++ example can be built and executed with the following steps.
 + Setup CMake: `cmake ..`
 + Install: `make install`
 
+> Note: C++ 11 is required because matrix initialization shorthands are only supported by Eigen library on this standard. This is why `CMakeLists.txt` includes this line: `set(CMAKE_CXX_STANDARD 11)`.
+
 ## Building
 
 + Configure: `cmake .`
