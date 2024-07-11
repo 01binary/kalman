@@ -1,6 +1,13 @@
-build
+kalman
 output.csv
 .DS_Store
+CMakeFiles
+Makefile
+*.cmake
+CMakeCache.txt
+
+# Matlab notebook state
+*.asv
 
 # Prerequisites
 *.d

@@ -8,7 +8,7 @@
       "name": "(lldb) Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/kalman",
+      "program": "${workspaceFolder}/kalman",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
