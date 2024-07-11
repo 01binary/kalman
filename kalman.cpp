@@ -125,7 +125,7 @@ double kalmanFilter(
   // Correct state with measurement
   x = x + K * (z - y);
 
-  // Correct variance
+  // Correct covariance
   P = (I - K * C) * P *
     (I - K * C).transpose() +
     K * R * K.transpose();
