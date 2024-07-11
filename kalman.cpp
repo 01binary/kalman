@@ -1,3 +1,7 @@
+//
+// Includes
+//
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -6,8 +10,16 @@
 #include <limits>
 #include <Eigen/Dense>
 
+//
+// Namespaces
+//
+
 using namespace std;
 using namespace Eigen;
+
+//
+// Constants
+//
 
 // A weights (3x3 matrix)
 const MatrixXd A
@@ -48,13 +60,13 @@ const VectorXd dx0 {{
   5.1495e+10
 }};
 
-// State identity matrix
-const Matrix<double, 3, 3> I = Matrix<double, 3, 3>::Identity();
+// State identity (3x3 matrix)
+const Matrix3d I = Matrix3d::Identity();
 
 // Noise variance (scalar)
 const double NoiseVariance = 1.539e-7;
 
-// Noise covariance
+// Noise covariance (3x3 matrix)
 const MatrixXd Q = I * NoiseVariance;
 
 // Measurement variance
@@ -67,24 +79,28 @@ const MatrixXd P0 {{
   { 0.0, 0.0, pow(dx0(2, 0), 2) }
 }};
 
+//
+// Functions
+//
+
 double systemModel(
-  VectorXd& x, // state
-  double u)       // input
+  VectorXd& x,  // state
+  double u)     // input
 {
   // Predict
   // y = Cx + Du
   double y =
-    // Add contribution of state
+    // Contribution of state
     C.dot(x) +
-    // Add contribution of input
+    // Contribution of input
     D * u;
 
   // Update state
   // x = Ax + Bu
   x =
-    // Add contribution of state
+    // Contribution of previous state
     A * x +
-    // Add contribution of input
+    // Contribution of input
     B * u;
 
   return y;
@@ -110,11 +126,81 @@ double kalmanFilter(
   x = x + K * (z - y);
 
   // Correct variance
-  P = (I - K * C) * P * (I - K * C).transpose() +
+  P = (I - K * C) * P *
+    (I - K * C).transpose() +
     K * R * K.transpose();
 
   return y;
 }
+
+//
+// Forward Declarations
+//
+
+bool openInput(const string& path, ifstream& file);
+bool openOutput(const string& path, ofstream& file);
+bool read(ifstream& file, double& time, double& measurement, double& input);
+
+//
+// Entry point
+//
+
+int main(int argc, char** argv)
+{
+  ifstream inputFile;
+
+  if (!openInput("input.csv", inputFile))
+  {
+    cerr << "Failed to open input file" << endl;
+    return 1;
+  }
+
+  ofstream outputFile;
+
+  if (!openOutput("output.csv", outputFile))
+  {
+    cerr << "Failed to open output file" << endl;
+    return 1;
+  }
+
+  // Initialize
+  VectorXd state = x0;
+  VectorXd gain(3);
+  MatrixXd covariance = P0;
+  double time, measurement, input;
+
+  // Filter
+  while(read(inputFile, time, measurement, input))
+  {
+    // Predict and update state
+    double prediction = systemModel(
+      state,
+      input
+    );
+
+    // Correct state
+    double estimate = kalmanFilter(
+      prediction,
+      measurement,
+      state,
+      covariance,
+      gain
+    );
+
+    // Output
+    outputFile
+      << time << ","
+      << estimate << ","
+      << measurement
+      << endl;
+  }
+
+  return 0;
+}
+
+//
+// Utilities
+//
 
 bool openOutput(
   const string& path, ofstream& file)
@@ -163,47 +249,4 @@ bool read(
     &input);
 
   return !file.eof();
-}
-
-int main(int argc, char** argv)
-{
-  ifstream inputFile;
-
-  if (!openInput("input.csv", inputFile))
-  {
-    cerr << "Failed to open input file" << endl;
-    return 1;
-  }
-
-  ofstream outputFile;
-
-  if (!openOutput("output.csv", outputFile))
-  {
-    cerr << "Failed to open output file" << endl;
-    return 1;
-  }
-
-  VectorXd state = x0;
-  VectorXd gain {{ 0, 0, 0 }};
-  MatrixXd covariance = P0;
-  double time, measurement, input;
-
-  while(read(inputFile, time, measurement, input))
-  {
-    double estimate = kalmanFilter(
-      systemModel(state, input),
-      measurement,
-      state,
-      covariance,
-      gain
-    );
-
-    outputFile
-      << time << ","
-      << estimate << ","
-      << measurement
-      << endl;
-  }
-
-  return 0;
 }

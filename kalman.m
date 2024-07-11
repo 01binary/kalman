@@ -1,3 +1,12 @@
+% Constants
+global A;
+global B;
+global C;
+global D;
+global Q;
+global R;
+global I;
+
 % A weights (3x3 matrix)
 A = [ ...
   1.0005, -0.0050, 0.0001;
@@ -22,13 +31,6 @@ C = [ ...
 % D weight (scalar)
 D = 0;
 
-% K weights (3x1 vector)
-K = [ ...
-  -0.0003;
-  0.0571;
-  -0.3487;
-];
-
 % Initial state (3x1 vector)
 x0 = [ ...
   -0.0461;
@@ -36,77 +38,116 @@ x0 = [ ...
   0.0098;
 ];
 
-% Initial state variance (3x1 vector)
+% Initial state standard deviation (3x1 vector)
 dx0 = [ ...
   7.4356e+06;
   3.9306e+09;
   5.1495e+10;
 ];
 
-% Input variance
-inputVariance = 100;
+% State identity matrix
+I = eye(length(x0));
+
+% Noise variance (scalar)
+NoiseVariance = 1.539e-7;
+
+% Noise covariance (3x3 matrix)
+Q = I * NoiseVariance;
 
 % Measurement variance
-measurementVariance = 344.5291;
+R = 3.4556e+03;
 
-% Disturbance variance
-disturbanceVariance = 0.0016;
-
-% Disturbance
-disturbance = 0;
+% Initial covariance
+P0 = diag(dx0.^2);
 
 % Read input
 csv = readmatrix('https://raw.githubusercontent.com/01binary/kalman/main/input.csv');
 time = csv(:,1);
 measurements = csv(:,2);
 inputs = csv(:,3);
-outputs = zeros(length(inputs), 1);
-optimization = zeros(length(inputs), 1);
 
-% Initial state
+% Initialize
 state = x0;
-
-% Initial covariance
-covariance = disturbanceVariance;
+covariance = P0;
+gain = [0, 0, 0];
+outputs = zeros(length(inputs), 1);
+gains = zeros(length(inputs), 1);
 
 % Filter
 for i = 1:length(inputs)
-  % Input
+  % Read input
   input = inputs(i);
+
+  % Take measurement
   measurement = measurements(i);
 
-  % Predict
-  % y = Cx + Du + e
-  prediction = ...
-    C * state + ...  % Add contribution of state
-    D * input + ...  % Add contribution of input
-    disturbance;     % Add disturbance
+  % Predict and update state
+  [state, prediction] = systemModel( ...
+    state, ...
+    input ...
+  );
 
-  % Update state
-  % x = Ax + Bu + Ke
-  state = ...
-    A * state + ...  % Add contribution of state
-    B * input + ...  % Add contribution of input
-    disturbance * K; % Add contribution of disturbance
-
-  % Update covariance
-  Aterm = sum(diag(A * covariance * 0.02 * A'));
-  Kterm = sum(diag(K * disturbanceVariance * K'));
-  %covariance = Aterm + Kterm;
-
-  % Optimize covariance
-  gain = covariance / (covariance + measurementVariance);
-
-  % Correct prediction
-  estimate = prediction + gain * (measurement - prediction);
-
-  % Correct covariance
-  covariance = (1 - gain) * covariance;
+  % Correct state
+  [state, covariance, gain] = kalmanFilter( ...
+    prediction, ...
+    measurement, ...
+    state, ...
+    covariance, ...
+    gain ...
+  );
 
   % Output
+  gains(i) = sum(gain);
   outputs(i) = prediction;
-  optimization(i) = gain * 100;
 end
 
-% Plot measurements, outputs and Kalman gain
-plot(time, measurements, time, outputs, time, optimization);
+% Plot
+plot( ...
+  time, measurements, ...
+  time, outputs, ...
+  time, gains ...
+);
+
+function [x, y] = systemModel(x, u)
+  global A;
+  global B;
+  global C;
+  global D;
+  global Q;
+
+  % Predict
+  % y = Cx + Du
+  y = ...
+    % Contribution of state
+    C * x + ...
+    % Contribution of input
+    D * u;
+
+  % Update state
+  % x = Ax + Bu
+  x = ...
+    % Contribution of previous state
+    A * x + ...
+    % Contribution of input
+    B * u;
+end
+
+function [x, P, K] = kalmanFilter(y, z, x, P, K)
+  global A;
+  global C;
+  global Q;
+  global R;
+  global I;
+
+  % Update covariance
+  P = A * P * A' + Q;
+
+  % Optimize gain
+  K = (P * C') / (C * P * C' + R);
+
+  % Correct state with measurement
+  x = x + K * (z - y);
+
+  % Correct covariance
+  P = (I - K * C) * P * (I - K * C)' + K * R * K';
+end
