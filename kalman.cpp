@@ -34,13 +34,6 @@ const VectorXd C {{
 // D weight (scalar)
 const double D = 0;
 
-// K weights (3x1 vector)
-const RowVectorXd K {{
-  -0.0001655,
-  -0.001508,
-  6.209e-06
-}};
-
 // Initial state (3x1 vector)
 const RowVectorXd x0 {{
   -0.0458,
@@ -48,25 +41,43 @@ const RowVectorXd x0 {{
   -0.0139
 }};
 
-/*
-  * Discrete state-space system model
-  * @param x: system state to update
-  * @param u: system input
-  * @param e: disturbance
-  * @return: system output
-*/
+// State standard deviation (3x1 vector)
+const RowVectorXd dx0 {{
+  7.4356e+06,
+  3.9306e+09,
+  5.1495e+10
+}};
+
+// State identity matrix
+const Matrix<double, 3, 3> I = Matrix<double, 3, 3>::Identity();
+
+// Noise variance (scalar)
+const double NoiseVariance = 1.539e-7;
+
+// Noise covariance
+const MatrixXd Q = I * NoiseVariance;
+
+// Measurement variance
+const double R = 3.4556e+03;
+
+// Initial covariance
+const MatrixXd P0 {{
+  { pow(dx0(0, 0), 2), 0.0, 0.0 },
+  { 0.0, pow(dx0(1, 0), 2), 0.0 },
+  { 0.0, 0.0, pow(dx0(2, 0), 2) }
+}};
+
 double systemModel(
-  RowVectorXd& x, double u, double e)
+  RowVectorXd& x, // state
+  double u)       // input
 {
   // Predict
-  // y = Cx + Du + e
+  // y = Cx + Du
   double y =
     // Add contribution of state
     C.dot(x) +
     // Add contribution of input
-    D * u +
-    // Add disturbance
-    e;
+    D * u;
 
   // Update state
   // x = Ax + Bu + Ke
@@ -74,9 +85,39 @@ double systemModel(
     // Add contribution of state
     x * A +
     // Add contribution of input
-    B * u +
-    // Add contribution of disturbance
-    K * e;
+    B * u;
+
+  return y;
+}
+
+double kalmanFilter(
+  double y,       // prediction
+  double z,       // measurement
+  RowVectorXd& x, // state
+  MatrixXd& P,    // covariance
+  RowVectorXd& K) // gain
+{
+  // Update covariance
+  P = A * P * A.transpose() + Q;
+
+  // Optimize gain
+  auto cTranspose = C.transpose();
+
+  cout << "C.transpose rows " << cTranspose.rows() << " cols " << cTranspose.cols();
+
+  cout << "P rows " << P.rows() << " cols " << P.cols();
+
+  /*K = (
+    (P * C.transpose()) /
+    (C * P * C.transpose() + R)
+  );*/
+
+  // Correct state with measurement
+  x = x + K * (z - y);
+
+  // Correct variance
+  /*P = (I - K * C) * P * (I - K * C).transpose() +
+    K * R * K.transpose();*/
 
   return y;
 }
@@ -92,7 +133,7 @@ bool openOutput(
   if (!file.is_open()) return false;
 
   // Write headers
-  file << "time,prediction,measurement" << endl;
+  file << "time,estimate,measurement" << endl;
 
   return true;
 }
@@ -149,17 +190,23 @@ int main(int argc, char** argv)
   }
 
   RowVectorXd state = x0;
+  RowVectorXd gain {{ 0, 0, 0 }};
+  MatrixXd covariance = P0;
   double time, measurement, input;
-  double disturbance = 0.0;
 
   while(read(inputFile, time, measurement, input))
   {
-    double prediction = systemModel(
-      state, input, disturbance);
+    double estimate = kalmanFilter(
+      systemModel(state, input),
+      measurement,
+      state,
+      covariance,
+      gain
+    );
 
     outputFile
       << time << ","
-      << prediction << ","
+      << estimate << ","
       << measurement
       << endl;
   }
