@@ -1,17 +1,28 @@
-function output = linearRegressionFilter(xInput, yInput, damping)
-  output = zeros(length(xInput), 1);
-  errors = zeros(length(xInput), 1);
-  weight = 0;
+function outputs = linearRegressionFilter( ...
+  inputs, ...
+  bufferSize ...
+)
+  half = floor(bufferSize / 2);
+  outputs = zeros(1, length(inputs));
 
-  for n = 1:length(xInput)
-    x = xInput(n);
-    y = yInput(n);
+  for n = 1:length(inputs)
+    % Sample next and previous samples around this sample
+    startIndex = max(1, n - half);
+    endIndex = min(length(inputs), n + half);
+    x = (startIndex:endIndex)';
+    y = inputs(startIndex:endIndex);
+    xMean = mean(x);
+    yMean = mean(y);
 
-    errors(n) = y - weight * x;
-    totalSquaredError = sum(errors)^2 / length(xInput);
-    weight = weight - totalSquaredError * damping;
+    % Tune contribution of input to output
+    weight = ...
+      sum((x - xMean) .* (y - yMean)) / ...
+      sum((x - xMean) .^ 2);
 
-    output(n) = weight * x;
+    % Tune initial state
+    initialState = yMean - weight * xMean;
+
+    % Predict
+    outputs(n) = weight * n + initialState;
   end
 end
- 
