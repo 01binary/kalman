@@ -1,18 +1,13 @@
-function output = simpleLinearRegression(inputs, outputs, learningRate)
-  output = zeros(length(inputs), 1);
-  errors = zeros(length(inputs), 1);
-  weight = 0;
+function predictions = linearRegression(inputs, outputs)
+  xMean = mean(inputs);
+  yMean = mean(outputs);
 
-  for n = 1:length(inputs)
-    x = inputs(n);
-    y = outputs(n);
+  xErrors = inputs - xMean;
+  xErrorsSquared = xErrors .^2;
+  yErrors = outputs - yMean;
 
-    errors(n) = y - weight * x;
-    totalSquaredError = sum(errors)^2 / length(inputs);
-    weight = weight - totalSquaredError * learningRate;
-    prediction = weight * x;
+  m = sum(xErrors .* yErrors) / sum(xErrorsSquared);
+  b = yMean - m * xMean;
 
-    output(n) = prediction;
-  end
+  predictions = inputs * m + b;
 end
- 
